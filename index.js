@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -8,8 +9,11 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.mzdz3ie.mongodb.net/?retryWrites=true&w=majority`;
+
+// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-posi9cq-shard-00-00.mzdz3ie.mongodb.net:27017,ac-posi9cq-shard-00-01.mzdz3ie.mongodb.net:27017,ac-posi9cq-shard-00-02.mzdz3ie.mongodb.net:27017/?ssl=true&replicaSet=atlas-429y9f-shard-0&authSource=admin&retryWrites=true&w=majority`;
+
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -27,21 +31,43 @@ async function run() {
 
     const menuCollection = client.db("bistroDb").collection("menu");
     const reviewsCollection = client.db("bistroDb").collection("reviews");
+    const cartCollection = client.db("bistroDb").collection("carts");
 
-    app.get('/menu', async(req, res) => {
-        const result = await menuCollection.find().toArray();
-        res.send(result);
+    app.get("/menu", async (req, res) => {
+      const result = await menuCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/reviews", async (req, res) => {
+      const result = await reviewsCollection.find().toArray();
+      res.send(result);
+    });
+
+    // cart collection
+    app.get("/carts", async (req, res) => {
+      const email = req.query.email;
+      // console.log(email);
+      if (!email) {
+        res.send([]);
+      }
+      const query = { email: email };
+      const result = await cartCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post("/carts", async (req, res) => {
+      const item = req.body;
+      console.log(item);
+      const result = await cartCollection.insertOne(item);
+      res.send(result);
+    });
+
+    app.delete('/carts/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await cartCollection.deleteOne(query);
+      res.send(result);
     })
-
-    app.get('/reviews', async(req, res) => {
-        const result = await reviewsCollection.find().toArray();
-        res.send(result);
-    })
-
-
-
-
-
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -62,3 +88,16 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Bistro boss is sitting on port: ${port}`);
 });
+
+/**
+ * --------------------------------
+ *      NAMING CONVENTION
+ * --------------------------------
+ * users : userCollection
+ * app.get('/users')          ---> read all users data
+ * app.get('/users/:id')
+ * app.post('/users')         ---> create new user
+ * app.patch('/users/:id')    ---> update particular user
+ * app.put('/users/:id')      ---> update particular user
+ * app.delete('/users/:id')
+ */
